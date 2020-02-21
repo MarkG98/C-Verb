@@ -1,5 +1,8 @@
 # DSP for Guitar Peddle Effects
 
+## Members
+Mark Goldwater and Nathaniel Tan
+
 ## Goals
 Our lower bound goal is to record or source audio samples of a guitar and apply post-processing effects as if it were a real-time signal. We would  like to implement a reverb (echo) effect as well as one other depending on how much time we have left in the project.
 
