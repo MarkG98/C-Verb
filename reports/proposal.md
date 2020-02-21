@@ -1,6 +1,6 @@
 # DSP for Guitar Peddle Effects
 
-## Members
+## Team Members
 Mark Goldwater and Nathaniel Tan
 
 ## Goals
