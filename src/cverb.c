@@ -33,7 +33,7 @@ cbuf_handle_t inputBuff;
 
 // Parses the wav file and fills a waveheader struct with the resulting information
 // The code in this function was taken from http://truelogic.org/wordpress/2015/09/04/parsing-a-wav-file-in-c/
-void parse_wav (FILE **in_file)
+void parse_wav (FILE *in_file)
 {
 	 int read = 0;
 
@@ -41,12 +41,12 @@ void parse_wav (FILE **in_file)
 	 unsigned char buffer4[4];
 	 unsigned char buffer2[2];
 
-	 read = fread(header.riff, sizeof(header.riff), 1, *in_file);
+	 read = fread(header.riff, sizeof(header.riff), 1, in_file);
 	 #ifdef DEBUG
 	 printf("(1-4): %s \n", header.riff);
 	 #endif
 
-	 read = fread(buffer4, sizeof(buffer4), 1, *in_file);
+	 read = fread(buffer4, sizeof(buffer4), 1, in_file);
 	 #ifdef DEBUG
 	 printf("%u %u %u %u\n", buffer4[0], buffer4[1], buffer4[2], buffer4[3]);
 	 #endif
@@ -61,17 +61,17 @@ void parse_wav (FILE **in_file)
 	 printf("(5-8) Overall size: bytes:%u, Kb:%u \n", header.overall_size, header.overall_size/1024);
 	 #endif
 
-	 read = fread(header.wave, sizeof(header.wave), 1, *in_file);
+	 read = fread(header.wave, sizeof(header.wave), 1, in_file);
 	 #ifdef DEBUG
 	 printf("(9-12) Wave marker: %s\n", header.wave);
 	 #endif
 
-	 read = fread(header.fmt_chunk_marker, sizeof(header.fmt_chunk_marker), 1, *in_file);
+	 read = fread(header.fmt_chunk_marker, sizeof(header.fmt_chunk_marker), 1, in_file);
 	 #ifdef DEBUG
 	 printf("(13-16) Fmt marker: %s\n", header.fmt_chunk_marker);
 	 #endif
 
-	 read = fread(buffer4, sizeof(buffer4), 1, *in_file);
+	 read = fread(buffer4, sizeof(buffer4), 1, in_file);
 	 #ifdef DEBUG
 	 printf("%u %u %u %u\n", buffer4[0], buffer4[1], buffer4[2], buffer4[3]);
 	 #endif
@@ -84,7 +84,7 @@ void parse_wav (FILE **in_file)
 	 printf("(17-20) Length of Fmt header: %u \n", header.length_of_fmt);
 	 #endif
 
-	 read = fread(buffer2, sizeof(buffer2), 1, *in_file);
+	 read = fread(buffer2, sizeof(buffer2), 1, in_file);
 
 	 #ifdef DEBUG
 	 printf("%u %u \n", buffer2[0], buffer2[1]);
@@ -103,7 +103,7 @@ void parse_wav (FILE **in_file)
 	 printf("(21-22) Format type: %u %s \n", header.format_type, format_name);
 	 #endif
 
-	 read = fread(buffer2, sizeof(buffer2), 1, *in_file);
+	 read = fread(buffer2, sizeof(buffer2), 1, in_file);
 	 #ifdef DEBUG
 	 printf("%u %u \n", buffer2[0], buffer2[1]);
 	 #endif
@@ -113,7 +113,7 @@ void parse_wav (FILE **in_file)
 	 printf("(23-24) Channels: %u \n", header.channels);
 	 #endif
 
-	 read = fread(buffer4, sizeof(buffer4), 1, *in_file);
+	 read = fread(buffer4, sizeof(buffer4), 1, in_file);
 	 #ifdef DEBUG
 	 printf("%u %u %u %u\n", buffer4[0], buffer4[1], buffer4[2], buffer4[3]);
 	 #endif
@@ -127,7 +127,7 @@ void parse_wav (FILE **in_file)
 	 printf("(25-28) Sample rate: %u\n", header.sample_rate);
 	 #endif
 
-	 read = fread(buffer4, sizeof(buffer4), 1, *in_file);
+	 read = fread(buffer4, sizeof(buffer4), 1, in_file);
 	 #ifdef DEBUG
 	 printf("%u %u %u %u\n", buffer4[0], buffer4[1], buffer4[2], buffer4[3]);
 	 #endif
@@ -140,7 +140,7 @@ void parse_wav (FILE **in_file)
 	 printf("(29-32) Byte Rate: %u , Bit Rate:%u\n", header.byterate, header.byterate*8);
 	 #endif
 
-	 read = fread(buffer2, sizeof(buffer2), 1, *in_file);
+	 read = fread(buffer2, sizeof(buffer2), 1, in_file);
 	 #ifdef DEBUG
 	 printf("%u %u \n", buffer2[0], buffer2[1]);
 	 #endif
@@ -151,7 +151,7 @@ void parse_wav (FILE **in_file)
 	 printf("(33-34) Block Alignment: %u \n", header.block_align);
 	 #endif
 
-	 read = fread(buffer2, sizeof(buffer2), 1, *in_file);
+	 read = fread(buffer2, sizeof(buffer2), 1, in_file);
 	 #ifdef DEBUG
 	 printf("%u %u \n", buffer2[0], buffer2[1]);
 	 #endif
@@ -162,12 +162,12 @@ void parse_wav (FILE **in_file)
 	 printf("(35-36) Bits per sample: %u \n", header.bits_per_sample);
 	 #endif
 
-	 read = fread(header.data_chunk_header, sizeof(header.data_chunk_header), 1, *in_file);
+	 read = fread(header.data_chunk_header, sizeof(header.data_chunk_header), 1, in_file);
 	 #ifdef DEBUG
 	 printf("(37-40) Data Marker: %s \n", header.data_chunk_header);
 	 #endif
 
-	 read = fread(buffer4, sizeof(buffer4), 1, *in_file);
+	 read = fread(buffer4, sizeof(buffer4), 1, in_file);
 	 #ifdef DEBUG
 	 printf("%u %u %u %u\n", buffer4[0], buffer4[1], buffer4[2], buffer4[3]);
 	 #endif
@@ -187,15 +187,24 @@ void process_data (FILE *out_file)
 
 }
 
-void load_data (FILE **in_file)
+void load_data (FILE *in_file)
 {
 		int read;
 
 		// REWRITE THIS
 		char intermediate[2];
-		read = fread(intermediate, sizeof(intermediate), 1, *in_file);
-		printf("%i", (int16_t)((intermediate[0])|(intermediate[1]<<8)));
-		//circular_buf_put(inputBuff, intermediate);
+
+		read = fread(intermediate, sizeof(intermediate), 1, in_file);
+		printf("%i\n", (int16_t)((intermediate[0])|(intermediate[1]<<8)));
+		circular_buf_put(inputBuff, intermediate[1]);
+		circular_buf_put(inputBuff, intermediate[0]);
+
+		int16_t retrieved;
+
+		circular_buf_get(inputBuff, ((char*) &retrieved)+1);
+		circular_buf_get(inputBuff, ((char*) &retrieved));
+
+		printf("%i\n", retrieved);
 }
 
 int main (int argc, char *argv[])
@@ -214,11 +223,11 @@ int main (int argc, char *argv[])
 
     FILE *in_file = fopen(argv[0], "rb");
 
-		parse_wav(&in_file);
+		parse_wav(in_file);
 
 		uint8_t buffOnStack[CIRC_BUFF_SAMPLES * (header.bits_per_sample / 8)];
 		inputBuff = circular_buf_init(buffOnStack, CIRC_BUFF_SAMPLES * (header.bits_per_sample / 8));
 
-		load_data(&in_file);
+		load_data(in_file);
 
 }
