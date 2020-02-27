@@ -1,16 +1,18 @@
+/* Libraries */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "circular_buffer.h"
 #include <string.h>
 #include <stdint.h>
 #include <inttypes.h>
 
+/* Header files */
+#include "circular_buffer.h"
 
-#define DEBUG
+//#define DEBUG
 #define CIRC_BUFF_SAMPLES 6
 
-//  WAVE file header format
+//  WAVE file header struct
 typedef struct
 {
 	unsigned char riff[4];									// RIFF string
@@ -28,8 +30,24 @@ typedef struct
 	unsigned int data_size;									// NumSamples * NumChannels * BitsPerSample/8 - size of the next chunk that will be read
 } waveheader;
 
+// Union for reading sample from .wav file
+typedef union
+{
+	char intermediate[2];
+	int16_t intermediate_sample;
+} sample;
+
+// Struct for processing buffer
+typedef struct
+{
+	int16_t buffer[CIRC_BUFF_SAMPLES];
+	int8_t head;
+} processingBuffer;
+
+sample sample_union;
 waveheader header;
 cbuf_handle_t inputBuff;
+processingBuffer pBuff;
 
 // Parses the wav file and fills a waveheader struct with the resulting information
 // The code in this function was taken from http://truelogic.org/wordpress/2015/09/04/parsing-a-wav-file-in-c/
@@ -187,24 +205,41 @@ void process_data (FILE *out_file)
 
 }
 
-void load_data (FILE *in_file)
+void retrieve_sample (int16_t *retrieved)
+{
+		circular_buf_get(inputBuff, ((char*) retrieved));
+		circular_buf_get(inputBuff, ((char*) retrieved)+1);
+}
+
+void buffer_sample(FILE *in_file)
 {
 		int read;
 
-		// REWRITE THIS
-		char intermediate[2];
+		read = fread(&sample_union.intermediate_sample, sizeof(sample_union.intermediate), 1, in_file);
 
-		read = fread(intermediate, sizeof(intermediate), 1, in_file);
-		printf("%i\n", (int16_t)((intermediate[0])|(intermediate[1]<<8)));
-		circular_buf_put(inputBuff, intermediate[1]);
-		circular_buf_put(inputBuff, intermediate[0]);
+		sample_union.intermediate_sample = (sample_union.intermediate[0])|(sample_union.intermediate[1]<<8);
 
+		circular_buf_put(inputBuff, sample_union.intermediate[0]);
+		circular_buf_put(inputBuff, sample_union.intermediate[1]);
+}
+
+void load_data (FILE *in_file)
+{
 		int16_t retrieved;
 
-		circular_buf_get(inputBuff, ((char*) &retrieved)+1);
-		circular_buf_get(inputBuff, ((char*) &retrieved));
+		retrieve_sample(&retrieved);
 
-		printf("%i\n", retrieved);
+		pBuff.buffer[pBuff.head] = retrieved;
+		if (pBuff.head < CIRC_BUFF_SAMPLES)
+		{
+			pBuff.head++;
+		}
+		else
+		{
+			pBuff.head = 0;
+		}
+
+		printf("%i",pBuff.buffer[0]);
 }
 
 int main (int argc, char *argv[])
@@ -228,6 +263,15 @@ int main (int argc, char *argv[])
 		uint8_t buffOnStack[CIRC_BUFF_SAMPLES * (header.bits_per_sample / 8)];
 		inputBuff = circular_buf_init(buffOnStack, CIRC_BUFF_SAMPLES * (header.bits_per_sample / 8));
 
+		// Initialize proessing buffer
+		for (int i = 0; i < CIRC_BUFF_SAMPLES; i++)
+		{
+			pBuff.buffer[i] = 0;
+		}
+		pBuff.head = 0;
+
+
+		buffer_sample(in_file);
 		load_data(in_file);
 
 }
