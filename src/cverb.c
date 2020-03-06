@@ -17,15 +17,20 @@
 
 #define CIRC_BUFF_SAMPLES 6
 
-// // Struct for processing buffer
-// typedef struct
-// {
-// 	int16_t buffer[CIRC_BUFF_SAMPLES];
-// 	int8_t head;
-// } ProcessingBuffer;
+/* Define constants for filters */
+#define FF 1.0
+#define FB 1.0
+
+// Struct for processing buffer
+typedef struct
+{
+	float buffer[CIRC_BUFF_SAMPLES];
+	int8_t head;
+} ProcessingBuffer;
 
 cbuf_handle_t inputBuff;
-// ProcessingBuffer pBuff;
+ProcessingBuffer pBuff_in;
+ProcessingBuffer pBuff_out;
 
 void retrieve_sample (int16_t *retrieved)
 {
@@ -33,9 +38,8 @@ void retrieve_sample (int16_t *retrieved)
 		circular_buf_get(inputBuff, ((char*) retrieved)+1);
 }
 
-void buffer_sample(FILE *in_file, FILE *out_file)
+void buffer_sample(FILE *in_file)
 {
-
 		Sample toBuffer;
 
 		fread(&toBuffer.intermediate_sample, sizeof(toBuffer.intermediate), 1, in_file);
@@ -46,29 +50,51 @@ void buffer_sample(FILE *in_file, FILE *out_file)
 		circular_buf_put(inputBuff, toBuffer.intermediate[1]);
 }
 
-void load_data (FILE *in_file, FILE *out_file)
+void apply_comb_filter (float *sample_out)
+{
+		*sample_out = FF * pBuff_in.buffer[pBuff_in.head];
+		for (int i = 0; i < 5; i++)
+		{
+			*sample_out += FB * pBuff_out.buffer[i];
+		}
+}
+
+void process_data (FILE *in_file, FILE *out_file)
 {
 		int16_t retrieved;
+		float sample_out = 0.0;
 		Sample toLoad;
 
-		buffer_sample(in_file, out_file);
+		buffer_sample(in_file);
 		retrieve_sample(&retrieved);
 
-		toLoad.intermediate_sample = retrieved;
+		pBuff_in.buffer[pBuff_in.head] = (float) retrieved;
+
+		apply_comb_filter(&sample_out);
+
+		pBuff_out.buffer[pBuff_out.head] = sample_out;
+
+		if (pBuff_in.head < CIRC_BUFF_SAMPLES - 1)
+		{
+			pBuff_in.head++;
+		}
+		else
+		{
+			pBuff_in.head = 0;
+		}
+
+		if (pBuff_out.head < CIRC_BUFF_SAMPLES - 2)
+		{
+			pBuff_out.head++;
+		}
+		else
+		{
+			pBuff_out.head = 0;
+		}
+
+		toLoad.intermediate_sample = (int16_t) sample_out;
 		toLoad.intermediate_sample = (toLoad.intermediate_sample << 8) | ((toLoad.intermediate_sample >> 8) & 0xFF);
 		fwrite(&toLoad.intermediate_sample, sizeof(toLoad.intermediate_sample), 1, out_file);
-
-		// pBuff.buffer[pBuff.head] = retrieved;
-		// if (pBuff.head < CIRC_BUFF_SAMPLES)
-		// {
-		// 	pBuff.head++;
-		// }
-		// else
-		// {
-		// 	pBuff.head = 0;
-		// }
-		//
-		// printf("%i",pBuff.buffer[0]);
 }
 
 int main (int argc, char *argv[])
@@ -102,15 +128,22 @@ int main (int argc, char *argv[])
 		inputBuff = circular_buf_init(buffOnStack, CIRC_BUFF_SAMPLES * ((header->bits_per_sample) / 8));
 
 		/* Instantiate processing buffer */
-		// for (int i = 0; i < CIRC_BUFF_SAMPLES; i++)
-		// {
-		// 	pBuff.buffer[i] = 0;
-		// }
-		// pBuff.head = 0;
+		for (int i = 0; i < CIRC_BUFF_SAMPLES; i++)
+		{
+			pBuff_in.buffer[i] = 0;
+		}
+		pBuff_in.head = 0;
+
+		/* Instantiate processing buffer */
+		for (int i = 0; i < CIRC_BUFF_SAMPLES; i++)
+		{
+			pBuff_out.buffer[i] = 0;
+		}
+		pBuff_out.head = 0;
 
 		while (!feof(in_file))
 		{
-			load_data(in_file, out_file);
+			process_data(in_file, out_file);
 		}
 
 		/* Not completly necessary to free header here since the program
