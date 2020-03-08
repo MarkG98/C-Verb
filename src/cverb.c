@@ -178,6 +178,8 @@ int main (int argc, char *argv[])
 		/* Not completly necessary to free here since the program
 		   is about to end, but let's do it for practice */
 		free(header);
+		free(pBuff_in->buffer);
 		free(pBuff_in);
+		free(pBuff_out->buffer);
 		free(pBuff_out);
 }
