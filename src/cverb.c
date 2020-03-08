@@ -16,21 +16,32 @@
 #include "wav.h"
 
 #define CIRC_BUFF_SAMPLES 6
+#define DELAY 600 // [ms]
 
 /* Define constants for filters */
-#define FF 1.0
-#define FB 1.0
+#define FF 1
+#define FB 1
 
 // Struct for processing buffer
 typedef struct
 {
-	float buffer[CIRC_BUFF_SAMPLES];
-	int8_t head;
+	float *buffer;
+	int memSize; // Amout of bytes allocated for the buffer
+	int length;  // Amount of indexes the buffer has
+	int head;
 } ProcessingBuffer;
 
 cbuf_handle_t inputBuff;
-ProcessingBuffer pBuff_in;
-ProcessingBuffer pBuff_out;
+
+ProcessingBuffer *construct_processing_buffer(WaveHeader *header)
+{
+		ProcessingBuffer *new = malloc(sizeof(ProcessingBuffer));
+		new->head = 0;
+		new->memSize = sizeof(float) * ((5 * DELAY * (header->sample_rate) / 1000) + 50);
+		new->length = (5 * DELAY * (header->sample_rate) / 1000) + 50;
+		new->buffer = malloc(new->memSize);
+		return new;
+}
 
 void retrieve_sample (int16_t *retrieved)
 {
@@ -50,48 +61,63 @@ void buffer_sample(FILE *in_file)
 		circular_buf_put(inputBuff, toBuffer.intermediate[1]);
 }
 
-void apply_comb_filter (float *sample_out)
+void apply_comb_filter (float *sample_out, ProcessingBuffer *pBuff_in, ProcessingBuffer *pBuff_out, WaveHeader *header)
 {
-		*sample_out = FF * pBuff_in.buffer[pBuff_in.head];
-		for (int i = 0; i < 5; i++)
+		int index;
+		*sample_out = FF * pBuff_in->buffer[pBuff_in->head];
+
+		for (int i = 0; i < 1; i++)
 		{
-			*sample_out += FB * pBuff_out.buffer[i];
+			index = pBuff_in->head - (int)((i+1) * DELAY * header->sample_rate / 1000);
+			if(index < 0)
+			{
+				index = pBuff_in->length + index;
+			}
+			*sample_out += FB * (pBuff_in->buffer[index]);
+			//printf("SAMPLE_IN: %f ", pBuff_in->buffer[pBuff_in->head]);
+			//printf("SCALED_SAMPLE_DELAYED: %f ", FB * pBuff_in->buffer[index]);
+			//printf("SAMPLE_OUT: %f ", *sample_out );
 		}
 }
 
-void process_data (FILE *in_file, FILE *out_file)
+void process_data (FILE *in_file, FILE *out_file, ProcessingBuffer *pBuff_in, ProcessingBuffer *pBuff_out, WaveHeader *header)
 {
 		int16_t retrieved;
-		float sample_out = 0.0;
+		float sample_out;
 		Sample toLoad;
 
 		buffer_sample(in_file);
 		retrieve_sample(&retrieved);
 
-		pBuff_in.buffer[pBuff_in.head] = (float) retrieved;
+		pBuff_in->buffer[pBuff_in->head] = (float) retrieved;
 
-		apply_comb_filter(&sample_out);
+		apply_comb_filter(&sample_out, pBuff_in, pBuff_out, header);
 
-		pBuff_out.buffer[pBuff_out.head] = sample_out;
+		pBuff_out->buffer[pBuff_out->head] = sample_out;
 
-		if (pBuff_in.head < CIRC_BUFF_SAMPLES - 1)
+		if (pBuff_in->head < pBuff_in->length - 1)
 		{
-			pBuff_in.head++;
+			pBuff_in->head++;
 		}
 		else
 		{
-			pBuff_in.head = 0;
+			pBuff_in->head = 0;
 		}
 
-		if (pBuff_out.head < CIRC_BUFF_SAMPLES - 2)
+		if (pBuff_out->head < pBuff_out->length - 1)
 		{
-			pBuff_out.head++;
+			pBuff_out->head++;
 		}
 		else
 		{
-			pBuff_out.head = 0;
+			pBuff_out->head = 0;
 		}
 
+		if ((sample_out > 32768) || (sample_out < -32768)) {
+			printf("Overflowed\n");
+		}
+
+		//printf("INT: %d\n",(int16_t) sample_out);
 		toLoad.intermediate_sample = (int16_t) sample_out;
 		toLoad.intermediate_sample = (toLoad.intermediate_sample << 8) | ((toLoad.intermediate_sample >> 8) & 0xFF);
 		fwrite(&toLoad.intermediate_sample, sizeof(toLoad.intermediate_sample), 1, out_file);
@@ -127,26 +153,31 @@ int main (int argc, char *argv[])
 		uint8_t buffOnStack[CIRC_BUFF_SAMPLES * (header->bits_per_sample / 8)];
 		inputBuff = circular_buf_init(buffOnStack, CIRC_BUFF_SAMPLES * ((header->bits_per_sample) / 8));
 
-		/* Instantiate processing buffer */
-		for (int i = 0; i < CIRC_BUFF_SAMPLES; i++)
-		{
-			pBuff_in.buffer[i] = 0;
-		}
-		pBuff_in.head = 0;
+		/* Instantiate in and out sample buffers*/
+		ProcessingBuffer *pBuff_in = construct_processing_buffer(header);
+		ProcessingBuffer *pBuff_out = construct_processing_buffer(header);
 
-		/* Instantiate processing buffer */
-		for (int i = 0; i < CIRC_BUFF_SAMPLES; i++)
+
+		/* Initialize processing buffer */
+		for (int i = 0; i < pBuff_in->length; i++)
 		{
-			pBuff_out.buffer[i] = 0;
+			pBuff_in->buffer[i] = 0;
 		}
-		pBuff_out.head = 0;
+
+		/* Initialize processing buffer */
+		for (int i = 0; i < pBuff_out->length; i++)
+		{
+			pBuff_out->buffer[i] = 0;
+		}
 
 		while (!feof(in_file))
 		{
-			process_data(in_file, out_file);
+			process_data(in_file, out_file, pBuff_in, pBuff_out, header);
 		}
 
-		/* Not completly necessary to free header here since the program
+		/* Not completly necessary to free here since the program
 		   is about to end, but let's do it for practice */
 		free(header);
+		free(pBuff_in);
+		free(pBuff_out);
 }
