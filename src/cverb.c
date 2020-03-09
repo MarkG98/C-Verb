@@ -20,7 +20,7 @@
 
 /* Define constants for filters */
 #define FF 1
-#define FB 1
+#define FB 0.3
 
 // Struct for processing buffer
 typedef struct
