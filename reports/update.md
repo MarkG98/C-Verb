@@ -35,7 +35,7 @@ the data sheet for the [TMS320C672x component](https://www.ti.com/lit/an/spraaa5
 
 ![DSP Arcitecture Block Diagram](../img/ShroederReverb.png)
 
-Essentially, our architecture utilizes parellel Comb Filters to take a given sample from the wav file and add it together with six delayed samples where DELAY is about 32 ms. This output is then put through four All Pass Filters in series which pass all frequencies equally in gain, but changes the phase relationships among the various frequencies. The spaces between the All Pass Filters are then tapped and these samples are added together to produce a single output value. Below are the difference equations we use for each filter (*Note: FF is the feed forward gain, and FB is the feedback gain*).
+Essentially, our architecture utilizes parallel Comb Filters to take a given sample from the wav file and add it together with six delayed samples where DELAY is about 32 ms. This output is then put through four All Pass Filters in series which pass all frequencies equally in gain, but changes the phase relationships among the various frequencies. The spaces between the All Pass Filters are then tapped and these samples are added together to produce a single output value. Below are the difference equations we use for each filter (*Note: FF is the feed forward gain, and FB is the feedback gain*).
 
 Comb Filter: **y[n] = FF * x[n] + FB * y[n-DELAY]**. \
 All Pass Filter: **y[n] = - FF * x[n] + x[n-DELAY] + FB * y[n-DELAY]**.
