@@ -21,11 +21,11 @@ typedef struct
 } WaveHeader;
 
 /* Union to read data as two 1-byte chunks or one 2-byte chunk */
-typedef union
-{
-	char intermediate[2];
-	int16_t intermediate_sample;
-} Sample;
+// typedef union
+// {
+// 	uint8_t intermediate[2];
+// 	uint16_t intermediate_sample;
+// } Sample;
 
 /* Function which reads through a wav file header
 
