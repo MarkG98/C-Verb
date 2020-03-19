@@ -9,6 +9,7 @@
 
 /* Libraries */
 #include <stdio.h>
+#include <string.h>
 
 /* Header files*/
 #include "wav.h"
