@@ -14,6 +14,8 @@
 /* Header files*/
 #include "wav.h"
 
+#define DEBUG
+
 /* Function which reads through a wav file header
 
 	 Reads wav file header and populates waveheader struct
