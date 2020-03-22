@@ -10,139 +10,47 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdint.h>
+#include <netinet/in.h>
 
 /* Header files */
-#include "circular_buffer.h"
 #include "wav.h"
 
-#define CIRC_BUFF_SAMPLES 6
 #define DELAY 600 // [ms]
+#define DELAY_SAMPLES DELAY * (header->sample_rate) / 1000
+#define NUM_SAMPLES header->data_size/2
 
 /* Define constants for filters */
-#define FF 1.0
-#define FB 1.0
-
-// Struct for processing buffer
-typedef struct
-{
-	float *buffer;
-	int memSize; // Amout of bytes allocated for the buffer
-	int length;  // Amount of indexes the buffer has
-	int head;
-} ProcessingBuffer;
-
-// Input circular buffer
-cbuf_handle_t inputBuff;
-
-ProcessingBuffer *construct_processing_buffer(WaveHeader *header)
-{
-		ProcessingBuffer *new = malloc(sizeof(ProcessingBuffer));
-		new->head = 0;
-		new->memSize = sizeof(float) * ((5 * DELAY * (header->sample_rate) / 1000) + 50);
-		new->length = (5 * DELAY * (header->sample_rate) / 1000) + 50;
-		new->buffer = malloc(new->memSize);
-		return new;
-}
-
-// Retrieves sample from circular buffer
-void retrieve_sample (int16_t *retrieved)
-{
-		circular_buf_get(inputBuff, retrieved);
-}
-
-void buffer_sample(FILE *in_file)
-{
-		int16_t toBuffer;
-
-		fread(&toBuffer, sizeof(toBuffer), 1, in_file);
-
-		// Converts from litle endian to big endian
-		toBuffer = ((toBuffer & 0xFF) << 8) | ((toBuffer & 0xFF00) >> 8);
-
-		circular_buf_put(inputBuff, toBuffer);
-}
-
-void apply_comb_filter (float *sample_out, ProcessingBuffer *pBuff_in, ProcessingBuffer *pBuff_out, WaveHeader *header)
-{
-		int index;
-		*sample_out = FF * pBuff_in->buffer[pBuff_in->head];
-
-		// Each iteration of the for loop is applying a separate comb filter
-		for (int i = 0; i < 1; i++)
-		{
-			// Index takes into account the delay from the pBuff head
-			index = pBuff_in->head - (int) ((i+1) * DELAY * header->sample_rate / 1000);
-
-			// If the index goes beyond the lower bound of the array, wrap to the end
-			if(index < 0)
-			{
-				index = pBuff_in->length + index;
-			}
-
-			// Applies feedback
-			*sample_out += FB * (pBuff_in->buffer[index]);
-			//printf("SAMPLE_IN: %f ", pBuff_in->buffer[pBuff_in->head]);
-			//printf("SCALED_SAMPLE_DELAYED: %f ", FB * pBuff_in->buffer[index]);
-			//printf("SAMPLE_OUT: %f ", *sample_out );
-		}
-}
+#define FF 1
+#define FB 1
 
 /*
-* 	proccess_data takes the in and out files, the in and out processing buffers and the wav Header
+* 	proccess_data takes the out file, the in and out buffers and the wav Header
 *		It buffers a sample, retrieves that sample and then applies the comb filter to that sample.
 *		The resulting proccessed sample is then stored in the out_file.
 */
-void process_data (FILE *in_file, FILE *out_file, ProcessingBuffer *pBuff_in, ProcessingBuffer *pBuff_out, WaveHeader *header)
+void process_data (int16_t *inputBuff, int16_t *outputBuff, WaveHeader *header, FILE *out_file)
 {
-		int16_t retrieved;
-		float sample_out;
-		int16_t to_load;
+		int delayValue = DELAY_SAMPLES;
+		int16_t to_load = 0;
 
-		// Buffering a sample and then immediately retrieving it seems unnecessary, but it is to simulate
-		// getting samples from a live input (a guitar) instead of a wav file.
-		buffer_sample(in_file);
-		retrieve_sample(&retrieved);
-
-		pBuff_in->buffer[pBuff_in->head] = (float) retrieved;
-
-		apply_comb_filter(&sample_out, pBuff_in, pBuff_out, header);
-
-		pBuff_out->buffer[pBuff_out->head] = sample_out;
-
-		// Updates pointer to head in circular processing buffer
-		if (pBuff_in->head < pBuff_in->length - 1)
+		for (unsigned int i=delayValue; i < NUM_SAMPLES; i++)
 		{
-			pBuff_in->head++;
+			//printf("Input Value: %d \n", inputBuff[i-delayValue]);
+			//printf("Output Value: %d \n", ((int16_t)(FB*((float)inputBuff[i-delayValue]))));
+			outputBuff[i] = (FF*inputBuff[i]) + ((int16_t)(FB*((float)inputBuff[i-delayValue])));
+			//printf("Output Value :%d \n", outputBuff[i]);
+			to_load = htons(outputBuff[i]);
+			fwrite(&to_load, sizeof(to_load), 1, out_file);
 		}
-		else
-		{
-			pBuff_in->head = 0;
-		}
-
-		// Updates pointer to head in circular processing buffer
-		if (pBuff_out->head < pBuff_out->length - 1)
-		{
-			pBuff_out->head++;
-		}
-		else
-		{
-			pBuff_out->head = 0;
-		}
-
-		// if ((sample_out > 32768) || (sample_out < -32768)) {
-		// 	printf("Overflowed\n");
-		// }
-
-		//printf("INT: %d\n", (uint16_t) sample_out);
-
-		// Convert back to little-endian to store in wav file
-		to_load = (int16_t) sample_out;
-		to_load = ((to_load & 0xFF) << 8) | ((to_load & 0xFF00) >> 8);
-		fwrite(&to_load, sizeof(to_load), 1, out_file);
+		//printf("FLOAT: %f\n", sample_out);
+		//printf("INT: %d\n", (int16_t) sample_out);
 }
 
 int main (int argc, char *argv[])
 {
+		int16_t toBuffer = 0;
+		int Bufferindex = 0;
+
 
 		/* Handle command line arguments */
 		char ch;
@@ -167,37 +75,27 @@ int main (int argc, char *argv[])
 		/* Parse header data from the .wav file */
 		parse_wav(in_file, out_file, header);
 
-		/* Create instance of circular buffer */
-		int16_t buffOnStack[CIRC_BUFF_SAMPLES * (header->bits_per_sample / 16)];
-		inputBuff = circular_buf_init(buffOnStack, CIRC_BUFF_SAMPLES * ((header->bits_per_sample) / 16));
-
-		/* Instantiate in and out sample buffers*/
-		ProcessingBuffer *pBuff_in = construct_processing_buffer(header);
-		ProcessingBuffer *pBuff_out = construct_processing_buffer(header);
+		int16_t *inputBuffer = malloc(header->data_size);
+		int16_t *outputBuffer = malloc(header->data_size);
 
 
-		/* Initialize processing buffer */
-		for (int i = 0; i < pBuff_in->length; i++)
+		while (fread(&toBuffer, sizeof(toBuffer), 1, in_file) == 1)
 		{
-			pBuff_in->buffer[i] = 0;
+			//process_data(in_file, out_file, pBuff_in, pBuff_out, header);
+
+			// Converts from litle endian to big endian
+			//toBuffer = ((toBuffer & 0xFF) << 8) | ((toBuffer & 0xFF00) >> 8);
+			inputBuffer[Bufferindex] = ntohs(toBuffer);
+			Bufferindex++;
 		}
 
-		/* Initialize processing buffer */
-		for (int i = 0; i < pBuff_out->length; i++)
-		{
-			pBuff_out->buffer[i] = 0;
-		}
-
-		while (!feof(in_file))
-		{
-			process_data(in_file, out_file, pBuff_in, pBuff_out, header);
-		}
+		process_data(inputBuffer, outputBuffer, header, out_file);
 
 		/* Not completly necessary to free here since the program
 		   is about to end, but let's do it for practice */
+		fclose(in_file);
+		fclose(out_file);
 		free(header);
-		free(pBuff_in->buffer);
-		free(pBuff_in);
-		free(pBuff_out->buffer);
-		free(pBuff_out);
+		free(inputBuffer);
+		free(outputBuffer);
 }
