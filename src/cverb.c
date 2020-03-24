@@ -20,8 +20,8 @@
 #define NUM_SAMPLES header->data_size/2
 
 /* Define constants for filters */
-#define FF 1
-#define FB 1
+#define FF 1.0
+#define FB 0.8
 
 /*
 * 	proccess_data takes the out file, the in and out buffers and the wav Header
@@ -37,9 +37,9 @@ void process_data (int16_t *inputBuff, int16_t *outputBuff, WaveHeader *header, 
 		{
 			//printf("Input Value: %d \n", inputBuff[i-delayValue]);
 			//printf("Output Value: %d \n", ((int16_t)(FB*((float)inputBuff[i-delayValue]))));
-			outputBuff[i] = (FF*inputBuff[i]) + ((int16_t)(FB*((float)inputBuff[i-delayValue])));
+			outputBuff[i] = FF*inputBuff[i] + ((int16_t)(FB*((float)inputBuff[i-delayValue])));
 			//printf("Output Value :%d \n", outputBuff[i]);
-			to_load = htons(outputBuff[i]);
+			to_load = outputBuff[i];
 			fwrite(&to_load, sizeof(to_load), 1, out_file);
 		}
 		//printf("FLOAT: %f\n", sample_out);
@@ -85,7 +85,7 @@ int main (int argc, char *argv[])
 
 			// Converts from litle endian to big endian
 			//toBuffer = ((toBuffer & 0xFF) << 8) | ((toBuffer & 0xFF00) >> 8);
-			inputBuffer[Bufferindex] = ntohs(toBuffer);
+			inputBuffer[Bufferindex] = toBuffer;
 			Bufferindex++;
 		}
 
