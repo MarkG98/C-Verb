@@ -1,3 +1,5 @@
+#ifndef WAV
+#define WAV
 /* Libraries */
 #include <stdio.h>
 #include <stdint.h>
@@ -20,13 +22,6 @@ typedef struct
 	unsigned int data_size;									// NumSamples * NumChannels * BitsPerSample/8 - size of the next chunk that will be read
 } WaveHeader;
 
-/* Union to read data as two 1-byte chunks or one 2-byte chunk */
-// typedef union
-// {
-// 	uint8_t intermediate[2];
-// 	uint16_t intermediate_sample;
-// } Sample;
-
 /* Function which reads through a wav file header
 
 	 Reads wav file header and populates waveheader struct
@@ -37,3 +32,4 @@ typedef struct
 	 out_file: wav file to contain filtered data
 */
 void parse_wav (FILE *in_file, FILE *out_file, WaveHeader *header);
+#endif
