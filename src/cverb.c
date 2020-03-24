@@ -16,11 +16,11 @@
 #include "wav.h"
 
 #define CIRC_BUFF_SAMPLES 6
-#define DELAY 600 // [ms]
+#define DELAY 32 // [ms]
 
 /* Define constants for filters */
 #define FF 1.0
-#define FB 1.0
+#define FB 0.8
 
 // Struct for processing buffer
 typedef struct
@@ -56,9 +56,6 @@ void buffer_sample(FILE *in_file)
 
 		fread(&toBuffer, sizeof(toBuffer), 1, in_file);
 
-		// Converts from litle endian to big endian
-		toBuffer = ((toBuffer & 0xFF) << 8) | ((toBuffer & 0xFF00) >> 8);
-
 		circular_buf_put(inputBuff, toBuffer);
 }
 
@@ -71,19 +68,16 @@ void apply_comb_filter (float *sample_out, ProcessingBuffer *pBuff_in, Processin
 		for (int i = 0; i < 1; i++)
 		{
 			// Index takes into account the delay from the pBuff head
-			index = pBuff_in->head - (int) ((i+1) * DELAY * header->sample_rate / 1000);
+			index = pBuff_out->head - (int) ((i+1) * DELAY * header->sample_rate / 1000);
 
 			// If the index goes beyond the lower bound of the array, wrap to the end
 			if(index < 0)
 			{
-				index = pBuff_in->length + index;
+				index = pBuff_out->length + index;
 			}
 
 			// Applies feedback
-			*sample_out += FB * (pBuff_in->buffer[index]);
-			//printf("SAMPLE_IN: %f ", pBuff_in->buffer[pBuff_in->head]);
-			//printf("SCALED_SAMPLE_DELAYED: %f ", FB * pBuff_in->buffer[index]);
-			//printf("SAMPLE_OUT: %f ", *sample_out );
+			*sample_out += FB * (pBuff_out->buffer[index]);
 		}
 }
 
@@ -129,15 +123,8 @@ void process_data (FILE *in_file, FILE *out_file, ProcessingBuffer *pBuff_in, Pr
 			pBuff_out->head = 0;
 		}
 
-		// if ((sample_out > 32768) || (sample_out < -32768)) {
-		// 	printf("Overflowed\n");
-		// }
-
-		//printf("INT: %d\n", (uint16_t) sample_out);
-
-		// Convert back to little-endian to store in wav file
 		to_load = (int16_t) sample_out;
-		to_load = ((to_load & 0xFF) << 8) | ((to_load & 0xFF00) >> 8);
+
 		fwrite(&to_load, sizeof(to_load), 1, out_file);
 }
 
