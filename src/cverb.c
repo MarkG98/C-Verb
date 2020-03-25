@@ -41,7 +41,7 @@ void apply_comb_filter (float *sample_out, ProcessingBuffer *pBuff_in, Processin
 		*sample_out = FF * pbuff_get(pBuff_in, NULL);
 
 		// Each iteration of the for loop is applying a separate comb filter
-		for (int i = 0; i < 1; i++)
+		for (int i = 0; i < 6; i++)
 		{
 			// Index takes into account the delay from the pBuff head
 			index = pbuff_get_head(pBuff_out) - (int) ((i+1) * DELAY_SAMPLES);
@@ -57,16 +57,39 @@ void apply_comb_filter (float *sample_out, ProcessingBuffer *pBuff_in, Processin
 		}
 }
 
+void apply_all_pass_filter(float *output, ProcessingBuffer *pBuff_in, ProcessingBuffer *pBuff_out, WaveHeader *header)
+{
+	int index;
+	*output = 0;
+
+	// Index takes into account the delay from the pBuff head
+	index = pbuff_get_head(pBuff_out) - (int) (DELAY_SAMPLES);
+
+	// If the index goes beyond the lower bound of the array, wrap to the end
+	if(index < 0)
+	{
+		index = pbuff_get_length(pBuff_out) + index;
+	}
+
+	// Applies feedback
+	*output += (-1)*FF*pbuff_get(pBuff_in, NULL);
+	*output += pbuff_get(pBuff_in, &index);
+	*output += FB*pbuff_get(pBuff_out, &index);
+}
+
+
 /*
 * 	proccess_data takes the in and out files, the in and out processing buffers and the wav Header
 *		It buffers a sample, retrieves that sample and then applies the comb filter to that sample.
 *		The resulting proccessed sample is then stored in the out_file.
 */
-void process_data (FILE *in_file, FILE *out_file, ProcessingBuffer *pBuff_in, ProcessingBuffer *pBuff_out, WaveHeader *header)
+void process_data (FILE *in_file, FILE *out_file, ProcessingBuffer *pBuff_in, ProcessingBuffer *pBuff_comb_out, ProcessingBuffer *pBuff_all_pass_1, ProcessingBuffer *pBuff_all_pass_2, ProcessingBuffer *pBuff_all_pass_3, ProcessingBuffer *pBuff_all_pass_4, ProcessingBuffer *pBuff_out, WaveHeader *header)
 {
 		int16_t retrieved;
 		float sample_out;
 		int16_t to_load;
+		float comb_output;
+		float all_pass_output_1, all_pass_output_2, all_pass_output_3, all_pass_output_4;
 
 		// Buffering a sample and then immediately retrieving it seems unnecessary, but it is to simulate
 		// getting samples from a live input (a guitar) instead of a wav file.
@@ -75,14 +98,36 @@ void process_data (FILE *in_file, FILE *out_file, ProcessingBuffer *pBuff_in, Pr
 
 		pbuff_put(pBuff_in, (float) retrieved);
 
-		apply_comb_filter(&sample_out, pBuff_in, pBuff_out, header);
+		apply_comb_filter(&comb_output, pBuff_in, pBuff_comb_out, header);
+		pbuff_put(pBuff_comb_out, comb_output);
+
+		apply_all_pass_filter(&all_pass_output1, pBuff_comb_out, pBuff_all_pass_1, header);
+		pbuff_put(pBuff_all_pass_1, all_pass_output_1);
+
+		apply_all_pass_filter(&all_pass_output2, pBuff_all_pass_1, pBuff_all_pass_2, header);
+		pbuff_put(pBuff_all_pass_2, all_pass_output_2);
+
+		apply_all_pass_filter(&all_pass_output3, pBuff_all_pass_2, pBuff_all_pass_3, header);
+		pbuff_put(pBuff_all_pass_3, all_pass_output_3);
+
+		apply_all_pass_filter(&all_pass_output4, pBuff_all_pass_3, pBuff_all_pass_4, header);
+		pbuff_put(pBuff_all_pass_4, all_pass_output_4);
+
+		sample_out = comb_output + all_pass_output_1 + all_pass_output_2 + all_pass_output_3 + all_pass_output_4;
 
 		pbuff_put(pBuff_out, sample_out);
 
-		// Updates pointer to head in circular processing buffer
+		// Updates pointer to head in circular processing buffer (input)
 		pbuff_update_head(pBuff_in);
 
-		// Updates pointer to head in circular processing buffer
+		// Update pointer to head in all pass filter functions
+		pbuff_update_head(pBuff_comb_out);
+		pbuff_update_head(pBuff_all_pass_1);
+		pbuff_update_head(pBuff_all_pass_2);
+		pbuff_update_head(pBuff_all_pass_3);
+		pbuff_update_head(pBuff_all_pass_4);
+
+		// Updates pointer to head in circular processing buffer (output)
 		pbuff_update_head(pBuff_out);
 
 		to_load = (int16_t) sample_out;
@@ -123,10 +168,16 @@ int main (int argc, char *argv[])
 		/* Instantiate in and out sample buffers*/
 		ProcessingBuffer *pBuff_in = construct_processing_buffer(header);
 		ProcessingBuffer *pBuff_out = construct_processing_buffer(header);
+		ProcessingBuffer *pBuff_comb_out = construct_processing_buffer(header);
+		ProcessingBuffer *pBuff_all_pass_1 = construct_processing_buffer(header);
+		ProcessingBuffer *pBuff_all_pass_2 = construct_processing_buffer(header);
+		ProcessingBuffer *pBuff_all_pass_3 = construct_processing_buffer(header);
+		ProcessingBuffer *pBuff_all_pass_4 = construct_processing_buffer(header);
+
 
 		while (!feof(in_file))
 		{
-			process_data(in_file, out_file, pBuff_in, pBuff_out, header);
+			process_data(in_file, out_file, pBuff_in, pBuff_comb_out, pBuff_all_pass_1, pBuff_all_pass_2, pBuff_all_pass_3, pBuff_all_pass_4, pBuff_out, header);
 		}
 
 		/* Not completly necessary to free here since the program
