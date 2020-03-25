@@ -38,10 +38,10 @@ void buffer_sample(FILE *in_file)
 void apply_comb_filter (float *sample_out, ProcessingBuffer *pBuff_in, ProcessingBuffer *pBuff_out, WaveHeader *header)
 {
 		int index;
-		*sample_out = FF * pbuff_get(pBuff_in, NULL);
+		*sample_out = FF_C * pbuff_get(pBuff_in, NULL);
 
 		// Each iteration of the for loop is applying a separate comb filter
-		for (int i = 0; i < 6; i++)
+		for (int i = 0; i < 4; i++)
 		{
 			// Index takes into account the delay from the pBuff head
 			index = pbuff_get_head(pBuff_out) - (int) ((i+1) * DELAY_SAMPLES);
@@ -53,7 +53,7 @@ void apply_comb_filter (float *sample_out, ProcessingBuffer *pBuff_in, Processin
 			}
 
 			// Applies feedback
-			*sample_out += FB * pbuff_get(pBuff_out, &index);
+			*sample_out += FB_C * pbuff_get(pBuff_out, &index);
 		}
 }
 
@@ -72,9 +72,9 @@ void apply_all_pass_filter(float *output, ProcessingBuffer *pBuff_in, Processing
 	}
 
 	// Applies feedback
-	*output += (-1)*FF*pbuff_get(pBuff_in, NULL);
+	*output += (-1)*FF_A*pbuff_get(pBuff_in, NULL);
 	*output += pbuff_get(pBuff_in, &index);
-	*output += FB*pbuff_get(pBuff_out, &index);
+	*output += FB_A*pbuff_get(pBuff_out, &index);
 }
 
 
@@ -101,16 +101,16 @@ void process_data (FILE *in_file, FILE *out_file, ProcessingBuffer *pBuff_in, Pr
 		apply_comb_filter(&comb_output, pBuff_in, pBuff_comb_out, header);
 		pbuff_put(pBuff_comb_out, comb_output);
 
-		apply_all_pass_filter(&all_pass_output1, pBuff_comb_out, pBuff_all_pass_1, header);
+		apply_all_pass_filter(&all_pass_output_1, pBuff_comb_out, pBuff_all_pass_1, header);
 		pbuff_put(pBuff_all_pass_1, all_pass_output_1);
 
-		apply_all_pass_filter(&all_pass_output2, pBuff_all_pass_1, pBuff_all_pass_2, header);
+		apply_all_pass_filter(&all_pass_output_2, pBuff_all_pass_1, pBuff_all_pass_2, header);
 		pbuff_put(pBuff_all_pass_2, all_pass_output_2);
 
-		apply_all_pass_filter(&all_pass_output3, pBuff_all_pass_2, pBuff_all_pass_3, header);
+		apply_all_pass_filter(&all_pass_output_3, pBuff_all_pass_2, pBuff_all_pass_3, header);
 		pbuff_put(pBuff_all_pass_3, all_pass_output_3);
 
-		apply_all_pass_filter(&all_pass_output4, pBuff_all_pass_3, pBuff_all_pass_4, header);
+		apply_all_pass_filter(&all_pass_output_4, pBuff_all_pass_3, pBuff_all_pass_4, header);
 		pbuff_put(pBuff_all_pass_4, all_pass_output_4);
 
 		sample_out = comb_output + all_pass_output_1 + all_pass_output_2 + all_pass_output_3 + all_pass_output_4;
