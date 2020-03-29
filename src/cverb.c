@@ -41,7 +41,7 @@ void apply_comb_filter (float *sample_out, ProcessingBuffer *pBuff_in, Processin
 		*sample_out = FF_C * pbuff_get(pBuff_in, NULL);
 
 		// Each iteration of the for loop is applying a separate comb filter
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < NUM_COMB_FILTERS; i++)
 		{
 			// Index takes into account the delay from the pBuff head
 			index = pbuff_get_head(pBuff_out) - (int) ((i+1) * DELAY_SAMPLES);
