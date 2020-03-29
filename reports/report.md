@@ -17,7 +17,9 @@ Our learning goals for this project were to learn about and experience low-level
 In addition, we wanted to gain experience with real-time signal processing which is why we want to handle the prerecorded signal as if it were real-time. This will allow for an easy transition between a pre-recorded signal and the hardware if we decide to achieve our stretch goal.
 
 ## End Result
-By the end of the project, we implemented a Schroeder Reverb effect that takes an input wav file and outputs a wav file with the reverb applied.These wav files contain single channel 16 bit audio. This was the lower bound goal of our project. Due to the unfortunate circumstances surrounding this semester and Covid-19, we were unable to devote sufficient enough time to achieve our upper bound goal. If we had more time and were able to meet in person, we feel that the upper bound goal would have been much more reachable. Despite this, we feel that we have achieved our learning goals.
+By the end of the project, we implemented a Schroeder Reverb effect that takes an input wav file and outputs a wav file with the reverb applied. An example output can be heard [here](https://soundcloud.com/mark-goldwater/c-verb-cantina)
+
+These wav files contain single channel 16 bit audio. This was the lower bound goal of our project. Due to the unfortunate circumstances surrounding this semester and Covid-19, we were unable to devote sufficient enough time to achieve our upper bound goal. If we had more time and were able to meet in person, we feel that the upper bound goal would have been much more reachable. Despite this, we feel that we have achieved our learning goals.
 
 ## System Design
 
@@ -74,6 +76,7 @@ void apply_comb_filter (float *sample_out, ProcessingBuffer *pBuff_in, Processin
 		}
 }
 ```
+
 The implementation of our comb filter can be seen above. The comb filter difference equation adds a scaled version of the current sample with a scaled version of a previous output, and it's difference equation is as below.
 
 **y[n] = FF * x[n] + FB * y[n-DELAY]**
