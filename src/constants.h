@@ -8,3 +8,4 @@
 #define FB_A 0.131 // Feedback gain comb filter
 #define PBUFF_LENGTH ((5 * DELAY * (header->sample_rate) / 1000) + 50) // Calculate length of proecessing buffer
 #define DELAY_SAMPLES  DELAY * header->sample_rate / 1000 // Calculate amount of samples for one delay length
+#define NUM_COMB_FILTERS 4 // Defines number of parellel comb filters in system
