@@ -1,7 +1,10 @@
 /*
 	Authors: Mark Goldwater, Nathaniel Tan
 
-	Code to process a .wav file in order to add reverb.
+	This code processes a monochannel .wav file in order
+	to add the effect of Schroeder Reverb to the sound. It
+	outputs a file called 'C-Verb.wav'.
+
 */
 
 /* Libraries */
@@ -20,12 +23,23 @@
 // Input circular buffer
 cbuf_handle_t inputBuff;
 
-// Retrieves sample from circular buffer
+/*
+		Retrieves a sample from the global circular buffer.
+
+		retreived: Pointer to variable which will
+							 store the retrieved sample.
+*/
 void retrieve_sample (int16_t *retrieved)
 {
 		circular_buf_get(inputBuff, retrieved);
 }
 
+/*
+		Reads sample from the .wav file and stores it
+		in the circular buffer.
+
+		in_file: File object for the input .wav file.
+*/
 void buffer_sample(FILE *in_file)
 {
 		int16_t toBuffer;
@@ -35,6 +49,17 @@ void buffer_sample(FILE *in_file)
 		circular_buf_put(inputBuff, toBuffer);
 }
 
+
+/*
+		Filter which calculates the output of NUM_COMB_FILTERS comb filters
+		for the sample that is marked by the head of the input buffer (pBuff_in).
+
+		sample_out: Variable to hold output of parellel comb filters.
+		pBuff_in: Processing buffer which stores input of comb filters.
+		pBuff_out Processing buffer which stores output of comb filters.
+		header: Struct that stores metadata of the sound file. Used in the #defined constants
+		        (see in constants.h).
+*/
 void apply_comb_filter (float *sample_out, ProcessingBuffer *pBuff_in, ProcessingBuffer *pBuff_out, WaveHeader *header)
 {
 		int index;
@@ -57,6 +82,16 @@ void apply_comb_filter (float *sample_out, ProcessingBuffer *pBuff_in, Processin
 		}
 }
 
+/*
+		Applies a singular all pass filter at the sample pointed to by the head of the
+		input buffer.
+
+		sample_out: Variable to hold output of parellel comb filters.
+		pBuff_in: Processing buffer which stores input of comb filters.
+		pBuff_out Processing buffer which stores output of comb filters.
+		header: Struct that stores metadata of the sound file. Used in the #defined constants
+						(see in constants.h).
+*/
 void apply_all_pass_filter(float *output, ProcessingBuffer *pBuff_in, ProcessingBuffer *pBuff_out, WaveHeader *header)
 {
 	int index;
@@ -79,9 +114,21 @@ void apply_all_pass_filter(float *output, ProcessingBuffer *pBuff_in, Processing
 
 
 /*
-* 	proccess_data takes the in and out files, the in and out processing buffers and the wav Header
-*		It buffers a sample, retrieves that sample and then applies the comb filter to that sample.
-*		The resulting proccessed sample is then stored in the out_file.
+  	Proccess_data takes the in and out files, the in and out processing buffers and the wav Header
+		It buffers a sample, retrieves that sample and then applies the comb filter to that sample.
+		The resulting proccessed sample is then stored in the out_file.
+
+		in_file: Input .wav sound file.
+		out_file: Output .wav sound file with processed data.
+		pBuff_in: Circular processing buffer for the input data from in_file
+		pBuff_comb_out: Circular processing buffer to store the output of the parellel comb filters.
+		pBuff_all_pass_1: Circular processing buffer for the output of the first all pass filter.
+		pBuff_all_pass_2: Circular processing buffer for the output of the second all pass filter.
+		pBuff_all_pass_3: Circular processing buffer for the output of the third all pass filter.
+		pBuff_all_pass_4: Circular processing buffer for the output of the fourth all pass filter.
+		pBuff_out: Circular processing buffer for the output of the DSP system.
+		header: Struct that stores metadata of the sound file. Used in the #defined constants
+						(see in constants.h).
 */
 void process_data (FILE *in_file, FILE *out_file, ProcessingBuffer *pBuff_in, ProcessingBuffer *pBuff_comb_out, ProcessingBuffer *pBuff_all_pass_1, ProcessingBuffer *pBuff_all_pass_2, ProcessingBuffer *pBuff_all_pass_3, ProcessingBuffer *pBuff_all_pass_4, ProcessingBuffer *pBuff_out, WaveHeader *header)
 {
@@ -180,6 +227,10 @@ int main (int argc, char *argv[])
 			process_data(in_file, out_file, pBuff_in, pBuff_comb_out, pBuff_all_pass_1, pBuff_all_pass_2, pBuff_all_pass_3, pBuff_all_pass_4, pBuff_out, header);
 		}
 
+		// Close files
+		fclose(in_file);
+		fclose(out_file);
+				
 		/* Not completly necessary to free here since the program
 		   is about to end, but let's do it for practice */
 		free(header);

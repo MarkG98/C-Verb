@@ -1,5 +1,8 @@
-// This code comes from https://github.com/embeddedartistry/embedded-resources/tree/master/examples/c/circular_buffer
-// Written by Phillip Johnston
+/*		
+		This code comes from https://github.com/embeddedartistry/embedded-resources/tree/master/examples/c/circular_buffer
+
+		Author: Phillip Johnston
+*/
 
 #include <stdlib.h>
 #include <stdint.h>
